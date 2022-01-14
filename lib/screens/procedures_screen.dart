@@ -118,7 +118,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
             },
             child: Container(
               margin: const EdgeInsets.all(10),
-              padding: EdgeInsets.all(10),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 children: [
                   Row(
@@ -127,7 +127,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                       Text(
                         e.description,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 20,
                         ),
                       ),
                       const Icon(Icons.arrow_forward_ios),
