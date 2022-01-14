@@ -212,9 +212,9 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-            builder: (context) => HomeScreen(
-                  token: token,
-                )));
+          builder: (context) => HomeScreen(token: token,)
+        )
+    );
   }
 
   bool _validateFields() {
