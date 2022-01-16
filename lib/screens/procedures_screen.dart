@@ -1,11 +1,11 @@
-import 'dart:convert';
+import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import 'package:vehicles_app/components/loader_component.dart';
-import 'package:vehicles_app/helpers/constans.dart';
+import 'package:vehicles_app/helpers/api_helper.dart';
 import 'package:vehicles_app/models/procedure.dart';
+import 'package:vehicles_app/models/response.dart';
 import 'package:vehicles_app/models/token.dart';
 import 'package:vehicles_app/screens/procedure_screen.dart';
 
@@ -48,8 +48,8 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
               context,
               MaterialPageRoute(
                   builder: (context) => ProcedureScreen(
-                      token: widget.token,
-                      procedure: Procedure(id: 0, description: '', price: 0),
+                        token: widget.token,
+                        procedure: Procedure(id: 0, description: '', price: 0),
                       )));
         },
       ),
@@ -61,38 +61,36 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       _showLoader = true;
     });
 
-    var url = Uri.parse('${Constans.apiUrl}/api/Procedures');
-    var response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'accept': 'application/json',
-        'Authorization': 'Bearer ${widget.token.token}'
-      },
-    );
+    Response response = await ApiHelper.getProcedures(widget.token.token);
+
     setState(() {
       _showLoader = false;
     });
 
-    var body = response.body;
-    var decoderJson = jsonDecode(body);
-    if (decoderJson != null) {
-      for (var item in decoderJson) {
-        _procedures.add(Procedure.fromJson(item));
-      }
+    if (!response.isSuccess) {
+      await showAlertDialog(
+          context: context,
+          title: 'Error',
+          message: response.message,
+          actions: <AlertDialogAction>[
+            const AlertDialogAction(key: null, label: 'Aceptar'),
+          ]);
+      return;
     }
 
-    print(_procedures);
+    setState(() {
+      _procedures = response.result;
+    });
   }
 
   Widget _getContenet() {
-    return _procedures == 0 ? _noContent() : _getListView();
+    return _procedures.length == 0 ? _noContent() : _getListView();
   }
 
   Widget _noContent() {
     return Center(
       child: Container(
-        margin: EdgeInsets.all(20),
+        margin: const EdgeInsets.all(20),
         child: const Text(
           'No hay procedimientos almacenados.',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -108,13 +106,12 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
           child: InkWell(
             onTap: () {
               Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ProcedureScreen(
-                      token: widget.token,
-                      procedure: e,
-                      )));
-
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ProcedureScreen(
+                            token: widget.token,
+                            procedure: e,
+                          )));
             },
             child: Container(
               margin: const EdgeInsets.all(10),
@@ -137,7 +134,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
                   Row(
                     children: [
                       Text(
-                        '${NumberFormat.currency(symbol: '\$').format(e.price)}',
+                        NumberFormat.currency(symbol: '\$').format(e.price),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
