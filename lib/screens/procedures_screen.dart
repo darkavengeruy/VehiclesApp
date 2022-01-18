@@ -22,6 +22,9 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
   List<Procedure> _procedures = [];
   bool _showLoader = false;
 
+  bool _isFiltered = false;
+  String _search = '';
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +36,17 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Procedimientos'),
+        actions: <Widget>[
+          _isFiltered
+              ? IconButton(
+                  icon: const Icon(Icons.filter_none),
+                  onPressed: _removeFilter,
+                )
+              : IconButton(
+                  icon: const Icon(Icons.filter_alt),
+                  onPressed: _showFilter,
+                )
+        ],
       ),
       body: Center(
         child: _showLoader
@@ -43,20 +57,12 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
-        onPressed: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ProcedureScreen(
-                        token: widget.token,
-                        procedure: Procedure(id: 0, description: '', price: 0),
-                      )));
-        },
+        onPressed: () => _goAdd(),
       ),
     );
   }
 
-  void _getProcedures() async {
+  Future<Null> _getProcedures() async {
     setState(() {
       _showLoader = true;
     });
@@ -91,62 +97,155 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
     return Center(
       child: Container(
         margin: const EdgeInsets.all(20),
-        child: const Text(
-          'No hay procedimientos almacenados.',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        child: Text(
+          _isFiltered
+              ? "No hay procedimientos con ese criterio de busqueda."
+              : "No hay procedimientos registrados.",
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
   Widget _getListView() {
-    return ListView(
-      children: _procedures.map((e) {
-        return Card(
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => ProcedureScreen(
-                            token: widget.token,
-                            procedure: e,
-                          )));
-            },
-            child: Container(
-              margin: const EdgeInsets.all(10),
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        e.description,
-                        style: const TextStyle(
-                          fontSize: 20,
+    return RefreshIndicator(       
+      onRefresh: _getProcedures,
+      child: ListView(
+        children: _procedures.map((e) {
+          return Card(
+            child: InkWell(
+              onTap: () => _goEdit(e),
+              child: Container(
+                margin: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          e.description,
+                          style: const TextStyle(
+                            fontSize: 20,
+                          ),
                         ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      Text(
-                        NumberFormat.currency(symbol: '\$').format(e.price),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                        const Icon(Icons.arrow_forward_ios),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Text(
+                          NumberFormat.currency(symbol: '\$').format(e.price),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
+  }
+
+  void _showFilter() {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            title: const Text('Filtrar Procedimientos'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text('Escriba las primeras letras del procedimiento'),
+                SizedBox(
+                  height: 10,
+                ),
+                TextField(
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Criterio de busqueda ...',
+                    labelText: 'Buscar',
+                    suffixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _search = value;
+                    });
+                  },
+                )
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar')),
+              TextButton(
+                  onPressed: () => _filter(), child: const Text('Filtrar')),
+            ],
+          );
+        });
+  }
+
+//quitamos el filtro de busqueda
+  void _removeFilter() {
+    setState(() {
+      _isFiltered = false;
+      _search = '';
+    });
+    _getProcedures();
+  }
+
+//filtramos los procedimientos por alguna letras
+  void _filter() {
+    if (_search.isEmpty) {
+      return;
+    }
+    List<Procedure> filteredList = [];
+    for (var procedure in _procedures) {
+      if (procedure.description.toLowerCase().contains(_search.toLowerCase())) {
+        filteredList.add(procedure);
+      }
+    }
+
+    setState(() {
+      _procedures = filteredList;
+      _isFiltered = true;
+    });
+    Navigator.of(context).pop();
+  }
+
+  void _goAdd() async {
+    String? result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => ProcedureScreen(
+                  token: widget.token,
+                  procedure: Procedure(id: 0, description: '', price: 0),
+                )));
+    if (result == 'yes') {
+      _getProcedures();
+    }
+  }
+
+  void _goEdit(Procedure procedure) async {
+    String? result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => ProcedureScreen(
+                  token: widget.token,
+                  procedure: procedure,
+                )));
+    if (result == 'yes') {
+      _getProcedures();
+    }
   }
 }
